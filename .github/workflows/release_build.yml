@@ -51,8 +51,7 @@ jobs:
           overwrite: true
           tag: ${{ github.ref }}
           asset_name: choosenim-${{ env.VERSION }}_linux_amd64
-          file: ${{ runner.workspace }}/choosenim/choosenim/bin/choosenim
-
+          file: ${{ runner.workspace }}/choosenim/choosenim/bin/choosenim         
   build-win32-exe:
     runs-on: windows-2019
     steps:
@@ -175,4 +174,39 @@ jobs:
           overwrite: true
           tag: ${{ github.ref }}
           asset_name: choosenim-${{ env.VERSION }}_macosx_arm64
+          file: ${{ runner.workspace }}/choosenim/bin/choosenim
+
+  build-linux-arm64:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jiro4989/setup-nim-action@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: korandoru/setup-zig@v1
+        with:
+          zig-version: 0.13.0
+      - name: Build binary
+        run: |
+          git config --global --add safe.directory /__w/choosenim/choosenim
+          nimble install -y
+          echo "#!/bin/bash" > zigcc
+          echo "zig cc -target aarch64-linux-gnu \$@" >> zigcc
+          chmod +x zigcc
+          nimble build -d:release -d:staticBuild --cc:clang --clang.exe="`pwd`/zigcc" --clang.linkerexe="`pwd`/zigcc" --forceBuild:on --opt:speed
+          ls bin/*
+
+      - name: Write release version
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          echo Version: $VERSION
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Upload binaries to release/tag
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          overwrite: true
+          tag: ${{ github.ref }}
+          asset_name: choosenim-${{ env.VERSION }}_linux_arm64
           file: ${{ runner.workspace }}/choosenim/bin/choosenim
